@@ -3,9 +3,10 @@ pub mod models;
 pub mod protocol;
 pub mod state;
 pub mod transport;
+pub mod tray;
 
 use std::sync::Arc;
-use tauri::Emitter;
+use tauri::{Emitter, WindowEvent};
 use tracing::{error, info};
 
 use commands::{
@@ -14,6 +15,7 @@ use commands::{
 };
 use state::DeviceManager;
 use transport::create_platform_transport;
+use tray::setup_system_tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,7 +26,7 @@ pub fn run() {
     info!("Starting earX desktop runtime...");
 
     // Create transport (defaults to Mock transport if no hardware, or platform Bluetooth transport)
-    let transport = create_platform_transport(true); // default with mock capable fallback
+    let transport = create_platform_transport(true);
     let manager: AppDeviceManager = Arc::new(DeviceManager::new(transport));
 
     let manager_for_events = Arc::clone(&manager);
@@ -40,6 +42,11 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let manager = manager_for_events;
 
+            // Setup system tray
+            if let Err(e) = setup_system_tray(&app_handle) {
+                error!("Failed to initialize system tray: {}", e);
+            }
+
             // Spawn state change listener to broadcast events to the frontend
             tauri::async_runtime::spawn(async move {
                 let mut rx = manager.subscribe();
@@ -51,6 +58,13 @@ pub fn run() {
             });
 
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Minimize to tray on close request instead of quitting
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             get_device_state,
