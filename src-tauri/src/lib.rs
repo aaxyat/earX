@@ -1,3 +1,4 @@
+pub mod models;
 pub mod protocol;
 
 #[tauri::command]
