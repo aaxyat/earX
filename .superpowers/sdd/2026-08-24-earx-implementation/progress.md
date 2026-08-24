@@ -1,0 +1,16 @@
+# SDD ledger — plan: docs/superpowers/plans/2026-08-24-earx-implementation.md
+
+- Task 1: complete (Tauri v2 + React + TS + Tailwind workspace scaffolded)
+- Task 2: complete (Binary packet framing, CRC-16 Modbus, and custom EQ float32 transformer)
+- Task 3: complete (Device model database and SKU serial number decoder)
+- Task 4: complete (BluetoothTransport trait and MockBluetoothTransport simulator)
+- Task 5: complete (Windows RFCOMM & macOS platform transport drivers)
+- Task 6: complete (DeviceState telemetry model and DeviceManager actor loop)
+- Task 7: complete (Tauri IPC commands and real-time event broadcasting)
+- Task 8: complete (Nothing OS design tokens, NDot/SpaceGrotesk typography, and AppLayout)
+- Task 9: complete (Zustand device store with optimistic updates and event subscriptions)
+- Task 10: complete (Nothing X Main Dashboard with Hero visualizer, telemetry bars, ANC dials, and 2-column bento grid)
+- Task 11: complete (Interactive Wave Equalizer canvas, preset pills, and Ultra Bass controls)
+- Task 12: complete (Gestures mapping, Device Settings with fit test/ringing, and System Settings with autostart)
+- Task 13: complete (Persistent system tray with dynamic earbuds icon, battery readout, and minimize-to-tray lifecycle)
+- Task 14: complete (All 16 unit/integration tests passing, clean TypeScript/Vite production build, and earx.exe Windows binary verified)
