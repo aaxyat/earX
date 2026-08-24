@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { EqualizerPage } from "@/pages/EqualizerPage";
 import { useDeviceStore } from "@/store/useDeviceStore";
 
 export default function App() {
@@ -8,7 +9,7 @@ export default function App() {
   return (
     <AppLayout>
       {activeTab === "dashboard" && <DashboardPage />}
-      {/* Subpages will be hooked in Tasks 11 & 12 */}
+      {activeTab === "equalizer" && <EqualizerPage />}
     </AppLayout>
   );
 }
