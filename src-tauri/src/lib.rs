@@ -1,5 +1,6 @@
 pub mod models;
 pub mod protocol;
+pub mod state;
 pub mod transport;
 
 #[tauri::command]
