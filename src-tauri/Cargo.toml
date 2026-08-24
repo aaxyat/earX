@@ -1,6 +1,6 @@
 [package]
 name = "earx"
-version = "1.0.0"
+version = "0.0.1-alpha"
 description = "Cross-Platform Desktop Controller for Nothing and CMF Earbuds"
 authors = ["earX Contributors"]
 edition = "2021"

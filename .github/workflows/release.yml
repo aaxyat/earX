@@ -14,7 +14,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ windows-latest, macos-latest ]
+        include:
+          - platform: windows-latest
+            targets: ""
+            args: ""
+          - platform: macos-latest
+            targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            args: "--target universal-apple-darwin"
 
     runs-on: ${{ matrix.platform }}
 
@@ -34,6 +40,8 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -53,7 +61,7 @@ jobs:
           releaseBody: |
             ## earX Release ${{ github.ref_name }}
             
-            ### Native Desktop Controller for Nothing & CMF Earbuds
+            ### Native Desktop Controller for Nothing & CMF Earbuds (Windows & macOS)
             
             #### Assets Included:
             - **Windows:** `.msi` installer & `.exe` bundle
@@ -61,5 +69,5 @@ jobs:
             
             See the [Commit Log](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for details.
           releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.platform == 'windows-latest' && '' || '--target universal-apple-darwin' }}
+          prerelease: true
+          args: ${{ matrix.args }}

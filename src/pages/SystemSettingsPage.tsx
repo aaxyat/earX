@@ -15,7 +15,6 @@ export const SystemSettingsPage = () => {
         const enabled = await isEnabled();
         setAutostartEnabled(enabled);
       } catch {
-        // Fallback for browser mode
         setAutostartEnabled(false);
       }
     };
@@ -115,7 +114,7 @@ export const SystemSettingsPage = () => {
           </p>
           <div className="flex justify-between items-center text-xs pt-3 border-t border-white/5 text-zinc-400">
             <span>Version</span>
-            <span className="font-mono text-white">1.0.0</span>
+            <span className="font-mono text-white">0.0.1-alpha</span>
           </div>
           <div className="flex justify-between items-center text-xs text-zinc-400">
             <span>Platform</span>
