@@ -10,12 +10,11 @@
 ## 1. Executive Summary & Product Vision
 
 ### 1.1 Objective
-`earX` is a native, ultra-lightweight, cross-platform desktop application designed to control, configure, and monitor Nothing and CMF audio devices on Windows (10/11) and macOS (12+). It replaces the need for Chromium-based Web Bluetooth browser apps or mobile-only apps by providing:
-1. **Low-overhead Native Runtime:** Powered by Tauri v2 with a pure Rust Bluetooth backend and hardware-accelerated WebView frontend.
-2. **System Tray / Menu Bar Resident:** Background battery monitoring, quick ANC toggles, and global keyboard shortcuts without keeping a heavy window open.
-3. **Nothing OS Aesthetic:** Pixel-perfect monochrome and red accent industrial design inspired by Nothing OS and Teenage Engineering UI principles.
-4. **Offline & Privacy-First:** Direct point-to-point RFCOMM/SPP communication with zero cloud dependencies, telemetry, or external network requests.
-
+1. **Pixel-Perfect Nothing OS / Nothing X Aesthetic:** Matches the authentic mobile companion app with the exact 2-column bento card grid, serif "Device details" typography, battery telemetry bars with charging indicators, circular noise cancellation dials, 4-step segmented ANC level slider, Ultra Bass red level meter, and dedicated sub-views.
+2. **Always-Running System Tray & Menu Bar:** Persistent background resident with an earbud-shaped tray icon that dynamically lights up / indicates active connection and battery percentage.
+3. **Autostart at System Launch:** Integrated launch-at-startup configuration (Windows Registry & macOS LaunchAgent via `tauri-plugin-autostart`).
+4. **Low-overhead Native Runtime:** Powered by Tauri v2 with a pure Rust Bluetooth backend and hardware-accelerated WebView frontend ($< 35\text{MB}$ RAM idle).
+5. **Offline & Privacy-First:** Direct point-to-point RFCOMM/SPP communication with zero cloud dependencies, telemetry, or external network requests.
 ---
 
 ## 2. System Architecture
@@ -266,61 +265,110 @@ pub trait BluetoothTransport: Send + Sync {
 
 ## 6. Frontend Architecture & Design System
 
-### 6.1 Design Tokens & Nothing OS Aesthetic
+### 6.1 Design Tokens & Nothing OS Mobile App Aesthetic
 * **Typography:**
-  * Primary Headings: `NDot 55` / `NDot 57` (dot-matrix display font)
-  * Secondary / UI Labels: `Space Grotesk` (clean geometric grotesk)
-  * Numbers & Technical Data: `Roboto Mono` / `Space Grotesk Medium`
-* **Color Palette:**
-  * Background Main: `#121212` / `#18181b` (deep carbon black)
-  * Surface Dark: `#21201f` / `#27272a` (elevated card container)
-  * Accent Red: `#d71920` / `#e82525` (signature Nothing red)
+  * Primary Serif Headlines & Titles: NType / Serif display font for "Device details", Device Name ("Ayush's CMF Buds 2 Plus")
+  * Secondary UI Labels & Subtitles: `Space Grotesk` (clean geometric grotesk for card headers, mode subtitles)
+  * Telemetry, Values & Badges: `Roboto Mono` / `NDot 55/57` for battery %, levels, and technical indicators
+* **Color Palette & Bento Geometry:**
+  * Background Canvas: `#000000` (true pitch black)
+  * Bento Card Containers: `#1c1c1e` / `#18181b` with rounded corners (`rounded-3xl` / 24px radius)
+  * Button Active State: `#ffffff` (solid white filled circle / pill) with `#000000` iconography
+  * Button Inactive State: `#2c2c2e` (dark elevated grey circle / pill) with `#8e8e93` iconography
+  * Accent Red: `#d71920` (signature Nothing red for Ultra Bass level bars, active badges, and warning states)
   * Text Primary: `#ffffff`
-  * Text Secondary: `#a1a1aa` (subtle zinc)
-  * Border Accent: `rgba(255, 255, 255, 0.1)`
+  * Text Secondary / Subtitles: `#8e8e93` / `#a1a1aa`
 
-### 6.2 Key Screen Views & Layouts
-1. **Device Dashboard (`/`):**
-   * High-resolution earbud visualizer (Left Bud, Case, Right Bud with live charging indicators and % battery badges).
-   * Connection status banner (Connected, Disconnected, Syncing).
-   * Quick Noise Control switcher (Noise Cancellation [High/Mid/Low/Adaptive], Transparency, Off).
-2. **Equalizer Hub (`/equalizer`):**
-   * Preset selector (Balanced, More Bass, More Treble, Voice, Custom).
-   * Interactive 3-Band Wave Equalizer with smooth SVG curve interpolation.
-   * Advanced 8-Band Parametric EQ (for B171/B155) with frequency/Q/gain sliders and real-time visualization.
-   * Ultra Bass / Enhanced Bass slider ($0 \dots 5$).
-3. **Gestures & Controls (`/gestures`):**
-   * Left & Right earbud interactive selector.
-   * Pinch / Tap mapping: Double Pinch, Triple Pinch, Pinch & Hold, Double Pinch & Hold.
-   * Action selection dropdowns: Play/Pause, Next Track, Previous Track, Voice Assistant, Noise Control toggle, Volume Up/Down.
-4. **Device Settings & Tools (`/settings`):**
-   * In-Ear Wear Detection toggle.
-   * Low Latency Mode toggle.
-   * Dual Connection / Multipoint management.
-   * Ear Tip Fit Test wizard with acoustic seal diagnostic feedback.
-   * Find My Earbuds (left/right audio beacon trigger).
-   * Firmware version, serial number, and raw communication diagnostic console.
+### 6.2 View Layout & Component Hierarchy (Matching Nothing X App)
+
+#### 1. Header & Navigation Area
+* Top App Bar: Left back arrow (`←`), center/left Serif title "Device details", right edit pencil icon (`✎`) for device renaming.
+
+#### 2. Hero Earbuds & Telemetry Section
+* **Dual Photorealistic Earbud Render:** High-fidelity visual rendering of left and right earbuds (dynamically loaded per SKU/color, e.g. CMF Buds 2 Plus dark blue, light grey, or orange).
+* **Device Name:** Serif display title (e.g. `Ayush's CMF Buds 2 Plus`).
+* **Battery Status Bars:**
+  * Three individual horizontal progress bars with labels and percentages underneath:
+    * Left Earbud: `— L 95%`
+    * Charging Case: `⚡ — C 40%` (with green/amber lightning bolt when charging)
+    * Right Earbud: `— R 90%`
+* **Connection Action Buttons:**
+  * Two side-by-side rounded pill cards:
+    * `[ ⚯ Forget ]` (with un-link icon)
+    * `[ ✕ Disconnect ]` (with cross icon)
+
+#### 3. Noise Cancellation Card
+* **Header:** "Noise cancellation", subtitle: "On · High" (or "Transparency", "Off").
+* **Mode Switcher (3 Circular Action Dials):**
+  * **Noise cancellation:** Arch with center dot icon. Active = white background with black icon.
+  * **Transparency:** Radiating dot circle icon.
+  * **Off:** Diagonal slash through inverted arch icon.
+* **ANC Intensity Segmented Slider (Visible when Noise Cancellation is Active):**
+  * 4 horizontal segmented pill selectors: `Low` | `Mid` | `High` | `Adaptive`
+  * Active level displays a solid white rounded pill; inactive levels display faint dark grey bars.
+
+#### 4. Spatial Audio Card
+* **Header:** "Spatial audio", top-right contextual menu button (`···`).
+* **Mode Buttons:** Two circular dials: `Fixed` (radiating sound wave arcs) vs `Off` (solid white when off).
+
+#### 5. Bento Card Grid (2-Column Layout)
+* **Card 1: Ultra Bass**
+  * Title: "Ultra bass", Subtitle: "On · Level 2" (or "Off")
+  * Controls: Toggle switch (left) + 5-bar vertical red level meter (`|||||` with active bars glowing Nothing red).
+* **Card 2: Personal Sound Profile**
+  * Title: "Personal Sound Profile", Subtitle: "Off" / "Calibrated"
+  * Icon: 3x3 dot matrix sound wave graphic.
+* **Card 3: Equalizer**
+  * Title: "Equalizer", Subtitle: "Rock" / "Pop" / "Balanced" / "Custom"
+  * Icon: Equalizer slider bars icon. Opens full Equalizer wave canvas.
+* **Card 4: Controls**
+  * Title: "Controls", Subtitle: "Customised"
+  * Icon: Gesture pinch finger touch icon. Opens gesture action mapping.
+* **Card 5: Low Lag Mode**
+  * Title: "Low lag mode", Subtitle: "Off" / "On"
+  * Control: Direct toggle switch.
+* **Card 6: Dual Connection**
+  * Title: "Dual connection", Subtitle: "On" / "Off"
+  * Icon: Multi-device stacked layers icon.
+* **Card 7: Device Settings**
+  * Title: "Device settings"
+  * Icon: Gear settings cog. Opens In-Ear detection, Ear tip fit test, and Find My Buds.
+* **Card 8: About**
+  * Title: "About", Subtitle: Device model / serial string
+  * Icon: Information `(i)` icon.
+* **Card 9: System Settings**
+  * Title: "System settings", Subtitle: Autostart & Tray preferences
+  * Icon: OS system icon.
 
 ---
 
-## 7. System Tray & Desktop Integration
+## 7. System Tray, Autostart & Background Resident Engine
 
-* **Windows Taskbar Tray / macOS Menu Bar Extra:**
-  * Custom dynamic tray icon displaying active device connection and left/right/case battery levels.
-  * Right-click context menu:
-    * Quick ANC Mode Toggle (ANC On $\leftrightarrow$ Transparency $\leftrightarrow$ Off).
-    * Bass Enhance toggle.
-    * Open Dashboard.
-    * Reconnect Device.
-    * Quit.
-* **Global Hotkeys (Configurable):**
-  * `Ctrl+Shift+A` (Win) / `Cmd+Shift+A` (Mac): Toggle ANC Mode.
-  * `Ctrl+Shift+B` (Win) / `Cmd+Shift+B` (Mac): Toggle Bass Enhance.
-  * `Ctrl+Shift+M` (Win) / `Cmd+Shift+M` (Mac): Toggle Low Latency Mode.
-* **Background Daemon Mode:**
-  * Closing the main window minimizes `earX` to the tray instead of terminating.
-  * Automatic reconnection handler when computer wakes from sleep or Bluetooth is toggled.
+### 7.1 Earbud-Shaped Dynamic System Tray Icon
+* **Visual States:**
+  * **Disconnected / Scanning:** Subtle outlined grayscale earbud icon.
+  * **Connected & Active:** Crisp solid white earbud icon with dynamic badge (or tooltip showing `L 95% | C 40% | R 90%`).
+  * **Low Battery Warning:** Amber / Red accent dot on tray icon when any earbud falls below $20\%$.
+* **Tray Context Menu:**
+  * Device Status & Battery: `Ayush's CMF Buds 2 Plus (L: 95% | C: 40% | R: 90%)`
+  * `───────────────`
+  * Noise Control submenu: `● Noise Cancellation (High)` | `○ Transparency` | `○ Off`
+  * Ultra Bass quick toggle: `[✓] Ultra Bass (Level 2)`
+  * `───────────────`
+  * `Open earX Dashboard`
+  * `Launch at System Startup` (checked/unchecked toggle)
+  * `Quit earX`
 
+### 7.2 Launch at System Startup (Autostart)
+* Integrated via `tauri-plugin-autostart`:
+  * **Windows:** Registers automatic startup in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+  * **macOS:** Registers a background `LaunchAgent` plist.
+* Configurable directly in System Settings and Tray context menu.
+
+### 7.3 Background Daemon & Minimize-to-Tray
+* The application runs continuously in the system tray / menu bar.
+* Closing the window with `[X]` hides the window to the tray rather than terminating the process.
+* Global shortcuts (`Ctrl+Shift+A` on Win / `Cmd+Shift+A` on Mac) allow switching ANC modes anytime without opening the GUI.
 ---
 
 ## 8. Implementation Roadmap & Milestones

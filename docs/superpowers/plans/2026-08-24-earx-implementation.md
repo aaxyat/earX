@@ -7,15 +7,11 @@
 **Architecture:** A lightweight Rust backend handles raw binary packet framing, CRC16 Modbus calculations, platform-specific Bluetooth RFCOMM connections, and state management actor loops. Tauri v2 IPC exposes commands and streams state updates to a React 18 frontend with an authentic Nothing OS industrial design system.
 
 **Tech Stack:** Tauri v2, Rust 1.78+ (`tokio`, `serialport`, `windows`, `thiserror`, `tracing`, `serde`), React 18, Vite, TypeScript, Tailwind CSS, Lucide icons, Zustand.
+**Goal:** Build a cross-platform desktop application (Tauri v2 + Rust + React/TypeScript) matching the authentic Nothing OS / Nothing X mobile companion app design for controlling Nothing and CMF earbuds (specifically CMF Buds Pro 2 / CMF Buds 2 Plus, Nothing Ear, Nothing Ear (2), CMF Buds, etc.) over Bluetooth SPP/RFCOMM on Windows and macOS. Always resident in the system tray / menu bar with an active earbud icon and launch-at-startup support.
 
-## Global Constraints
+**Architecture:** A lightweight Rust backend handles raw binary packet framing, CRC16 Modbus calculations, platform-specific Bluetooth RFCOMM connections, system tray lifecycle, and state management actor loops. Tauri v2 IPC exposes commands and streams state updates to a React 18 frontend featuring the exact Nothing OS 2-column bento card grid, serif typography, circular noise control dials, 4-step ANC level slider, Ultra Bass red level meter, and battery telemetry bars.
 
-- **Cross-Platform:** Pure Rust implementation with Windows (`windows-rs` / WinRT RFCOMM & serial COM fallback) and macOS (`IOBluetooth` FFI & POSIX TTY fallback).
-- **Non-Blocking:** All Bluetooth I/O in Tokio worker tasks; zero blocking operations on the Tauri main thread.
-- **Protocol Precision:** CRC-16 Modbus (`0xA001`, init `0xFFFF`), sequence wrapping $1 \dots 250$, minimum $100\text{ms}$ delay between sequential init commands.
-- **URL Style:** Zero query strings (`?key=value`) — clean paths or in-memory routing only.
-- **Security:** Offline operation only, zero external web requests, zero access to `~/secrets/`.
-
+**Tech Stack:** Tauri v2, `tauri-plugin-autostart`, Rust 1.78+ (`tokio`, `serialport`, `windows`, `thiserror`, `tracing`, `serde`), React 18, Vite, TypeScript, Tailwind CSS, Lucide icons, Zustand.
 ---
 
 ### Task 1: Project Scaffolding (Tauri v2 + React + Vite + TypeScript + Tailwind CSS)
@@ -252,99 +248,119 @@ Initialize store with listeners for real-time Tauri events.
 
 ---
 
-### Task 10: Frontend Main Dashboard — Device Visualizer & Noise Control
+### Task 10: Frontend Main Dashboard — Hero Visualizer, Battery Telemetry & Noise Control Dials
 
 **Files:**
-- Create: `src/components/dashboard/DeviceVisualizer.tsx`
-- Create: `src/components/dashboard/BatteryBadge.tsx`
-- Create: `src/components/dashboard/NoiseControlSelector.tsx`
+- Create: `src/components/dashboard/HeaderBar.tsx`
+- Create: `src/components/dashboard/DualEarbudsVisualizer.tsx`
+- Create: `src/components/dashboard/BatteryTelemetryBars.tsx`
+- Create: `src/components/dashboard/ActionButtonsRow.tsx`
+- Create: `src/components/dashboard/NoiseCancellationCard.tsx`
+- Create: `src/components/dashboard/SpatialAudioCard.tsx`
+- Create: `src/components/dashboard/BentoCardGrid.tsx`
 - Create: `src/pages/DashboardPage.tsx`
 
 **Interfaces:**
-- Produces: Main screen displaying earbud charging graphic, left/right/case battery %, and ANC dial (Noise Cancellation / Transparency / Off with intensity slider).
+- Produces: Pixel-perfect replica of the Nothing X mobile companion app with the exact layout from the reference screenshots:
+  - Header bar with back arrow, Serif "Device details", and pencil edit icon.
+  - Dual photorealistic earbuds render matching device color.
+  - Device title (e.g. "Ayush's CMF Buds 2 Plus") in Serif typography.
+  - 3 battery progress bars (`— L 95%`, `⚡ — C 40%`, `— R 90%`).
+  - Pill action buttons: `Forget` and `Disconnect`.
+  - Noise cancellation card with 3 circular action dials (Noise cancellation, Transparency, Off) and 4-step segmented pills (`Low`, `Mid`, `High`, `Adaptive`).
+  - Spatial audio card with `Fixed` and `Off` circular dials.
+  - 2-Column Bento grid containing: Ultra Bass (toggle + 5-bar vertical red level meter), Personal Sound Profile, Equalizer, Controls, Low Lag Mode, Dual Connection, Device Settings, About, and System Settings.
 
-- [ ] **Step 1: Build `BatteryBadge` component**
-Render battery percentage with dynamic charging bolt icon and color state (green / amber / red).
+- [ ] **Step 1: Build HeaderBar & DualEarbudsVisualizer**
+Render top bar with back navigation and edit icon, plus high-res dual earbud graphic.
 
-- [ ] **Step 2: Build `DeviceVisualizer` component**
-Render Left, Case, and Right earbud assets with subtle charging glow effects.
+- [ ] **Step 2: Build BatteryTelemetryBars and ActionButtonsRow**
+Render horizontal progress bars for Left, Case (with charging bolt), and Right buds, plus `Forget` and `Disconnect` buttons.
 
-- [ ] **Step 3: Build `NoiseControlSelector` component**
-Render 3-way toggle (Noise Cancellation, Transparency, Off) with level sub-selector (High, Mid, Low, Adaptive).
+- [ ] **Step 3: Build NoiseCancellationCard with circular dials & 4-step segmented pills**
+Circular mode buttons (`Noise cancellation`, `Transparency`, `Off`) with active solid white state, plus horizontal segmented pill selector (`Low`, `Mid`, `High`, `Adaptive`) when ANC is active.
 
-- [ ] **Step 4: Assemble `DashboardPage`**
-Connect visualizer and noise controls to `useDeviceStore`.
+- [ ] **Step 4: Build SpatialAudioCard and 2-Column BentoCardGrid**
+Render Bento card grid featuring Ultra Bass (toggle + red meter bars), Equalizer, Controls, Low Lag Mode, Dual Connection, Device Settings, About, and System Settings.
+
+- [ ] **Step 5: Assemble DashboardPage**
+Wire all state and actions to `useDeviceStore`.
 
 ---
 
-### Task 11: Frontend Equalizer Hub — 3-Band Wave & Ultra Bass
+### Task 11: Frontend Subpages — Equalizer Hub & Wave Canvas
 
 **Files:**
-- Create: `src/components/equalizer/EqPresetSelector.tsx`
+- Create: `src/components/equalizer/EqPresetPills.tsx`
 - Create: `src/components/equalizer/WaveEqualizerCanvas.tsx`
-- Create: `src/components/equalizer/UltraBassSlider.tsx`
+- Create: `src/components/equalizer/AdvancedParametricEq.tsx`
 - Create: `src/pages/EqualizerPage.tsx`
 
 **Interfaces:**
-- Produces: Interactive audio customization screen with smooth SVG EQ curve manipulation and Ultra Bass control.
+- Produces: Subpage opened when clicking the Equalizer bento card, featuring preset pills (Balanced, More Bass, More Treble, Voice, Rock, Pop, Custom), interactive 3-band wave canvas, and 8-band parametric EQ for supported models.
 
-- [ ] **Step 1: Build `EqPresetSelector`**
-Presets for Balanced, More Bass, More Treble, Voice, and Custom.
+- [ ] **Step 1: Build EqPresetPills**
+Render preset selector pills with active white selection.
 
-- [ ] **Step 2: Build `WaveEqualizerCanvas`**
-Interactive 3-band curve visualizer (Bass, Mid, Treble) updating in real-time.
+- [ ] **Step 2: Build WaveEqualizerCanvas**
+Render interactive 3-band curve with draggable Bass, Mid, and Treble nodes.
 
-- [ ] **Step 3: Build `UltraBassSlider`**
-$0 \dots 5$ discrete level slider with instant tactile visual feedback.
-
-- [ ] **Step 4: Assemble `EqualizerPage`**
-Bind EQ controls to Tauri IPC commands.
+- [ ] **Step 3: Build EqualizerPage with Back Navigation**
+Header with "Equalizer" and back arrow returning to Dashboard.
 
 ---
 
-### Task 12: Frontend Gestures & Quick Settings Hub
+### Task 12: Frontend Subpages — Gestures, Device Settings & System Settings (Autostart)
 
 **Files:**
-- Create: `src/components/gestures/GestureStemSelector.tsx`
-- Create: `src/components/gestures/GestureActionRow.tsx`
-- Create: `src/components/settings/QuickSettingToggle.tsx`
-- Create: `src/components/settings/EarTipFitTestModal.tsx`
-- Create: `src/components/settings/FindMyBudsControl.tsx`
 - Create: `src/pages/GesturesPage.tsx`
-- Create: `src/pages/SettingsPage.tsx`
+- Create: `src/pages/DeviceSettingsPage.tsx`
+- Create: `src/pages/SystemSettingsPage.tsx`
+- Create: `src/components/settings/EarTipFitTestModal.tsx`
+- Create: `src/components/settings/FindMyBudsModal.tsx`
 
 **Interfaces:**
-- Produces: Complete gesture mapping screen and settings hub with In-Ear detection, Low Latency, Ringing, and Fit Test.
+- Produces:
+  - Gestures subpage for touch/pinch configuration.
+  - Device settings subpage for In-Ear detection, Ear Tip Fit Test, Find My Buds, and Firmware version.
+  - System settings subpage for "Launch at system startup" toggle and "Minimize to tray on close" toggle.
 
-- [ ] **Step 1: Build Gesture stem and action configuration**
-Configure Double Pinch, Triple Pinch, Pinch & Hold, Double Pinch & Hold for Left and Right buds.
+- [ ] **Step 1: Build GesturesPage**
+Configure left and right earbud stem gestures.
 
-- [ ] **Step 2: Build Quick Settings toggles and Find My Buds**
-Toggles for In-Ear Wear Detection, Low Latency Mode, and Left/Right audio beacon ringing.
+- [ ] **Step 2: Build DeviceSettingsPage with Fit Test and Find My Buds**
+Manage In-Ear wear detection and diagnostic tools.
 
-- [ ] **Step 3: Build Ear Tip Fit Test modal**
-Acoustic test wizard with seal analysis result feedback.
+- [ ] **Step 3: Build SystemSettingsPage with Autostart toggle**
+Connect "Launch at startup" toggle to `tauri-plugin-autostart`.
 
 ---
 
-### Task 13: System Tray & Desktop Integration
+### Task 13: System Tray (Earbuds Icon), Menu Bar & Autostart Integration
 
 **Files:**
 - Create: `src-tauri/src/tray.rs`
+- Create: `src-tauri/src/autostart.rs`
+- Create: `src-tauri/icons/tray-earbuds-active.png`
+- Create: `src-tauri/icons/tray-earbuds-inactive.png`
 - Modify: `src-tauri/src/lib.rs`
 
 **Interfaces:**
-- Produces: Resident background system tray icon with live battery display, quick ANC menu switcher, and minimize-to-tray window lifecycle.
+- Produces:
+  - Persistent system tray icon shaped like earbuds.
+  - Grayed-out / outlined when disconnected; illuminated solid white with battery tooltip/badge when active.
+  - Tray context menu for fast ANC switching, battery readout, launch at startup toggle, and dashboard opening.
+  - Autostart integration via `tauri-plugin-autostart` for Windows and macOS.
+  - Window close interception (hides window to tray).
 
-- [ ] **Step 1: Configure Tauri System Tray**
-Create tray icon with dynamic tooltip showing battery status.
+- [ ] **Step 1: Implement dynamic earbud tray icon & context menu in `tray.rs`**
+Handle left-click (toggle window visibility) and right-click context menu with live battery status and ANC mode toggles.
 
-- [ ] **Step 2: Add Tray context menu**
-Menu items for Quick ANC toggle, Open Dashboard, and Quit.
+- [ ] **Step 2: Integrate `tauri-plugin-autostart`**
+Register autostart plugin and expose IPC command for querying and setting autostart state.
 
-- [ ] **Step 3: Implement Minimize-to-Tray on window close**
-Intercept window close event and hide window to keep background monitoring alive.
-
+- [ ] **Step 3: Implement window close interception**
+Configure `tauri.conf.json` and window event handler in `lib.rs` to hide to tray on close.
 ---
 
 ### Task 14: End-to-End Verification & Windows Smoke Testing
