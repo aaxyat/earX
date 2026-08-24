@@ -1,5 +1,6 @@
 pub mod models;
 pub mod protocol;
+pub mod transport;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
