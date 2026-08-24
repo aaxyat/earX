@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'SpaceGrotesk';
+  src: url('/fonts/space_grotesk_regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SpaceGrotesk';
+  src: url('/fonts/space_grotesk_medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SpaceGrotesk';
+  src: url('/fonts/space_grotesk_bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'NDot57';
+  src: url('/fonts/ndot_57.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'RobotoMono';
+  src: url('/fonts/roboto_medium_numbers.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+:root {
+  color-scheme: dark;
+  --app-bg: #000000;
+  --card-bg: #1c1c1e;
+  --card-bg-subtle: #252528;
+}
+
+body {
+  margin: 0;
+  background-color: var(--app-bg);
+  color: #ffffff;
+  font-family: 'SpaceGrotesk', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333336;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555559;
+}

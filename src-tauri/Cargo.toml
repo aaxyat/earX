@@ -1,0 +1,38 @@
+[package]
+name = "earx"
+version = "1.0.0"
+description = "Cross-Platform Desktop Controller for Nothing and CMF Earbuds"
+authors = ["earX Contributors"]
+edition = "2021"
+
+[lib]
+name = "earx_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.5", features = [] }
+
+[dependencies]
+tauri = { version = "2.2.4", features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = "2.2.0"
+tauri-plugin-opener = "2.2.5"
+tauri-plugin-shell = "2.2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.43", features = ["full"] }
+async-trait = "0.1"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serialport = "4.7"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Devices_Bluetooth",
+    "Devices_Bluetooth_Rfcomm",
+    "Devices_Enumeration",
+    "Networking_Sockets",
+    "Storage_Streams",
+    "Foundation",
+    "Foundation_Collections"
+] }
