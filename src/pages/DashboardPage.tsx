@@ -6,6 +6,7 @@ import { ActionButtonsRow } from "@/components/dashboard/ActionButtonsRow";
 import { NoiseCancellationCard } from "@/components/dashboard/NoiseCancellationCard";
 import { SpatialAudioCard } from "@/components/dashboard/SpatialAudioCard";
 import { BentoCardGrid } from "@/components/dashboard/BentoCardGrid";
+import { DeviceScanModal } from "@/components/dashboard/DeviceScanModal";
 import { useDeviceStore } from "@/store/useDeviceStore";
 
 export const DashboardPage = () => {
@@ -20,6 +21,7 @@ export const DashboardPage = () => {
   } = useDeviceStore();
 
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isScanOpen, setIsScanOpen] = useState(false);
   const [nameInput, setNameInput] = useState(device.device_name);
 
   useEffect(() => {
@@ -38,11 +40,13 @@ export const DashboardPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white pb-6 animate-fadeIn">
-      {/* Top Header */}
+      {/* Top Header with Bluetooth scan trigger on the left icon */}
       <TopHeader
         title="Device details"
         showBack={false}
         showEdit={true}
+        isConnected={device.is_connected}
+        onScan={() => setIsScanOpen(true)}
         onEdit={() => {
           setNameInput(device.device_name);
           setIsRenaming(true);
@@ -78,6 +82,12 @@ export const DashboardPage = () => {
           </div>
         </div>
       )}
+
+      {/* Bluetooth Device Scanner Modal */}
+      <DeviceScanModal
+        isOpen={isScanOpen}
+        onClose={() => setIsScanOpen(false)}
+      />
 
       {/* Main Scroll Content */}
       <div className="flex-1 overflow-y-auto">

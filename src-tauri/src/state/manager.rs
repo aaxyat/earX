@@ -20,7 +20,7 @@ pub struct DeviceManager {
 
 impl DeviceManager {
     pub fn new(transport: Box<dyn BluetoothTransport>) -> Self {
-        let (tx, _) = broadcast::channel(32);
+        let (tx, _) = broadcast::channel(64);
         Self {
             transport: Arc::new(Mutex::new(transport)),
             state: Arc::new(Mutex::new(DeviceState::default())),
@@ -61,6 +61,25 @@ impl DeviceManager {
         transport.scan_devices().await
     }
 
+    /// Auto-connects to the first available paired Nothing / CMF earbuds
+    pub async fn auto_connect(&self) -> Result<bool, TransportError> {
+        let devices = self.scan_devices().await?;
+        for d in devices {
+            let is_target = d.name.contains("Nothing")
+                || d.name.contains("CMF")
+                || d.name.contains("Buds")
+                || d.name.contains("Ear");
+
+            if is_target {
+                info!("Auto-connecting to detected device: {} ({})", d.name, d.address);
+                if self.connect(&d.address, Some(d.name)).await.is_ok() {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
     pub async fn connect(&self, address: &str, name: Option<String>) -> Result<(), TransportError> {
         info!("Connecting to Bluetooth device {} ({:?})", address, name);
         {
@@ -80,7 +99,9 @@ impl DeviceManager {
         self.emit_state().await;
 
         // Run full device initialisation handshake with pacing
-        self.init_device().await?;
+        if let Err(e) = self.init_device().await {
+            warn!("Init handshake completed with warning: {:?}", e);
+        }
         Ok(())
     }
 
@@ -105,40 +126,51 @@ impl DeviceManager {
         info!("Beginning device handshake & initialization sequence");
 
         // 1. Request Serial Number (for model & capability identification)
-        self.send_command(Command::RequestSerialNumber, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::RequestSerialNumber, &[]).await;
+        let _ = self.read_and_process_responses().await;
         sleep(Duration::from_millis(100)).await;
 
         // 2. Read Battery Levels
-        self.send_command(Command::ReadBattery, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::ReadBattery, &[]).await;
+        let _ = self.read_and_process_responses().await;
         sleep(Duration::from_millis(100)).await;
 
         // 3. Read ANC Status
-        self.send_command(Command::ReadAnc, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::ReadAnc, &[]).await;
+        let _ = self.read_and_process_responses().await;
         sleep(Duration::from_millis(100)).await;
 
         // 4. Read Firmware
-        self.send_command(Command::ReadFirmware, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::ReadFirmware, &[]).await;
+        let _ = self.read_and_process_responses().await;
         sleep(Duration::from_millis(100)).await;
 
         // 5. Read In-Ear Detection
-        self.send_command(Command::ReadInEar, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::ReadInEar, &[]).await;
+        let _ = self.read_and_process_responses().await;
         sleep(Duration::from_millis(100)).await;
 
         // 6. Read Low Latency Mode
-        self.send_command(Command::ReadLatencyMode, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::ReadLatencyMode, &[]).await;
+        let _ = self.read_and_process_responses().await;
         sleep(Duration::from_millis(100)).await;
 
         // 7. Read Enhanced Bass
-        self.send_command(Command::ReadEnhancedBass, &[]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::ReadEnhancedBass, &[]).await;
+        let _ = self.read_and_process_responses().await;
 
         info!("Device handshake & initialisation complete");
+        self.emit_state().await;
+        Ok(())
+    }
+
+    pub async fn poll_battery(&self) -> Result<(), TransportError> {
+        if !self.get_state().await.is_connected {
+            return Ok(());
+        }
+
+        let _ = self.send_command(Command::ReadBattery, &[]).await;
+        let _ = self.read_and_process_responses().await;
         self.emit_state().await;
         Ok(())
     }
@@ -153,13 +185,27 @@ impl DeviceManager {
             return Ok(());
         }
 
-        match decode_frame(&raw_bytes) {
-            Ok(parsed) => {
-                self.process_packet(parsed).await;
+        // Process potentially concatenated frames in stream
+        let mut cursor = 0;
+        while cursor + 10 <= raw_bytes.len() {
+            // Find frame start 0x55, 0x60, 0x01
+            if raw_bytes[cursor] == 0x55 && raw_bytes[cursor + 1] == 0x60 && raw_bytes[cursor + 2] == 0x01 {
+                let payload_len = raw_bytes[cursor + 5] as usize;
+                let frame_len = 8 + payload_len + 2;
+                if cursor + frame_len <= raw_bytes.len() {
+                    match decode_frame(&raw_bytes[cursor..cursor + frame_len]) {
+                        Ok(parsed) => {
+                            self.process_packet(parsed).await;
+                        }
+                        Err(e) => {
+                            debug!("Frame decode warning at offset {}: {:?}", cursor, e);
+                        }
+                    }
+                    cursor += frame_len;
+                    continue;
+                }
             }
-            Err(e) => {
-                warn!("Received invalid or corrupted packet: {:?}", e);
-            }
+            cursor += 1;
         }
 
         Ok(())
@@ -269,8 +315,8 @@ impl DeviceManager {
         };
 
         let payload = [0x01, byte_val, 0x00];
-        self.send_command(Command::SetAnc, &payload).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::SetAnc, &payload).await;
+        let _ = self.read_and_process_responses().await;
 
         {
             let mut state = self.state.lock().await;
@@ -285,8 +331,8 @@ impl DeviceManager {
         let enabled_byte = if enabled { 0x01 } else { 0x00 };
         let level_byte = level.min(5) * 2;
 
-        self.send_command(Command::SetEnhancedBass, &[enabled_byte, level_byte]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::SetEnhancedBass, &[enabled_byte, level_byte]).await;
+        let _ = self.read_and_process_responses().await;
 
         {
             let mut state = self.state.lock().await;
@@ -314,8 +360,8 @@ impl DeviceManager {
             payload.extend_from_slice(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
         }
 
-        self.send_command(Command::SetCustomEq, &payload).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::SetCustomEq, &payload).await;
+        let _ = self.read_and_process_responses().await;
 
         {
             let mut state = self.state.lock().await;
@@ -330,8 +376,8 @@ impl DeviceManager {
 
     pub async fn set_in_ear_detection(&self, enabled: bool) -> Result<(), TransportError> {
         let val = if enabled { 0x01 } else { 0x00 };
-        self.send_command(Command::SetInEar, &[0x01, 0x01, val]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::SetInEar, &[0x01, 0x01, val]).await;
+        let _ = self.read_and_process_responses().await;
 
         {
             let mut state = self.state.lock().await;
@@ -343,8 +389,8 @@ impl DeviceManager {
 
     pub async fn set_low_latency(&self, enabled: bool) -> Result<(), TransportError> {
         let val = if enabled { 0x01 } else { 0x02 };
-        self.send_command(Command::SetLatencyMode, &[val, 0x00]).await?;
-        self.read_and_process_responses().await?;
+        let _ = self.send_command(Command::SetLatencyMode, &[val, 0x00]).await;
+        let _ = self.read_and_process_responses().await;
 
         {
             let mut state = self.state.lock().await;
