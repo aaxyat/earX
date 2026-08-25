@@ -1,10 +1,13 @@
 use async_trait::async_trait;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tracing::{debug, info, warn};
-
 use super::serial_port::SerialPortTransport;
 use super::trait_def::{BluetoothTransport, DiscoveredDevice, TransportError};
+
+#[cfg(windows)]
+use std::sync::Arc;
+#[cfg(windows)]
+use tokio::sync::Mutex;
+#[cfg(windows)]
+use tracing::{debug, info, warn};
 
 #[cfg(windows)]
 use windows::{
@@ -20,9 +23,12 @@ use windows::{
     },
 };
 
+#[cfg(windows)]
 const AF_BTH_VAL: u16 = 32;
+#[cfg(windows)]
 const BTHPROTO_RFCOMM_VAL: i32 = 3;
 
+#[cfg(windows)]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 #[allow(non_snake_case)]
@@ -103,11 +109,11 @@ impl Drop for WindowsBluetoothTransport {
 #[async_trait]
 impl BluetoothTransport for WindowsBluetoothTransport {
     async fn scan_devices(&self) -> Result<Vec<DiscoveredDevice>, TransportError> {
-        info!("Scanning for paired Nothing & CMF Bluetooth devices on Windows...");
-        let mut devices = Vec::new();
+        let mut devices: Vec<DiscoveredDevice> = Vec::new();
 
         #[cfg(windows)]
         {
+            info!("Scanning for paired Nothing & CMF Bluetooth devices on Windows...");
             unsafe {
                 let search_params = BLUETOOTH_DEVICE_SEARCH_PARAMS {
                     dwSize: std::mem::size_of::<BLUETOOTH_DEVICE_SEARCH_PARAMS>() as u32,
@@ -177,13 +183,10 @@ impl BluetoothTransport for WindowsBluetoothTransport {
             }
         }
 
-        info!("Discovered {} Bluetooth device(s)", devices.len());
         Ok(devices)
     }
 
     async fn connect(&mut self, address: &str) -> Result<(), TransportError> {
-        info!("Attempting connection to Bluetooth device {}", address);
-
         #[cfg(windows)]
         if let Some(mac_u64) = Self::parse_mac_address(address) {
             info!("Opening native Winsock AF_BTH RFCOMM socket to {}", address);
@@ -228,7 +231,6 @@ impl BluetoothTransport for WindowsBluetoothTransport {
         }
 
         // Fallback to Serial COM port
-        info!("Attempting SerialPort fallback for {}", address);
         self.serial_fallback.connect(address).await?;
         self.device_address = address.to_string();
         self.connected = true;
@@ -245,25 +247,23 @@ impl BluetoothTransport for WindowsBluetoothTransport {
             return Err(TransportError::Disconnected("Device not connected".into()));
         }
 
+        #[cfg(windows)]
         if self.is_socket {
-            #[cfg(windows)]
-            {
-                let lock = self.socket_handle.lock().await;
-                if let Some(sock) = *lock {
-                    let res = unsafe {
-                        send(sock, frame, SEND_RECV_FLAGS(0))
-                    };
-                    if res < 0 {
-                        let err = unsafe { WSAGetLastError() };
-                        return Err(TransportError::Io(format!("Winsock send error: {:?}", err)));
-                    }
-                    return Ok(());
+            let lock = self.socket_handle.lock().await;
+            if let Some(sock) = *lock {
+                let res = unsafe {
+                    send(sock, frame, SEND_RECV_FLAGS(0))
+                };
+                if res < 0 {
+                    let err = unsafe { WSAGetLastError() };
+                    return Err(TransportError::Io(format!("Winsock send error: {:?}", err)));
                 }
+                return Ok(());
             }
-            Err(TransportError::Disconnected("Socket not available".into()))
-        } else {
-            self.serial_fallback.send(frame).await
+            return Err(TransportError::Disconnected("Socket not available".into()));
         }
+
+        self.serial_fallback.send(frame).await
     }
 
     async fn receive(&mut self) -> Result<Vec<u8>, TransportError> {
@@ -271,52 +271,45 @@ impl BluetoothTransport for WindowsBluetoothTransport {
             return Err(TransportError::Disconnected("Device not connected".into()));
         }
 
+        #[cfg(windows)]
         if self.is_socket {
-            #[cfg(windows)]
-            {
-                let lock = self.socket_handle.lock().await;
-                if let Some(sock) = *lock {
-                    let mut buffer = [0u8; 2048];
-                    let res = unsafe {
-                        recv(sock, &mut buffer, SEND_RECV_FLAGS(0))
-                    };
+            let lock = self.socket_handle.lock().await;
+            if let Some(sock) = *lock {
+                let mut buffer = [0u8; 2048];
+                let res = unsafe {
+                    recv(sock, &mut buffer, SEND_RECV_FLAGS(0))
+                };
 
-                    if res > 0 {
-                        return Ok(buffer[0..res as usize].to_vec());
-                    } else if res == 0 {
+                if res > 0 {
+                    return Ok(buffer[0..res as usize].to_vec());
+                } else if res == 0 {
+                    return Ok(Vec::new());
+                } else {
+                    let err = unsafe { WSAGetLastError() };
+                    if err.0 == 10035 || err.0 == 10060 {
                         return Ok(Vec::new());
-                    } else {
-                        let err = unsafe { WSAGetLastError() };
-                        // WSAEWOULDBLOCK / timeout
-                        if err.0 == 10035 || err.0 == 10060 {
-                            return Ok(Vec::new());
-                        }
-                        return Err(TransportError::Io(format!("Winsock recv error: {:?}", err)));
                     }
+                    return Err(TransportError::Io(format!("Winsock recv error: {:?}", err)));
                 }
             }
-            Err(TransportError::Disconnected("Socket not available".into()))
-        } else {
-            self.serial_fallback.receive().await
+            return Err(TransportError::Disconnected("Socket not available".into()));
         }
+
+        self.serial_fallback.receive().await
     }
 
     async fn disconnect(&mut self) -> Result<(), TransportError> {
-        info!("Disconnecting Windows Bluetooth transport");
+        #[cfg(windows)]
         if self.is_socket {
-            #[cfg(windows)]
-            {
-                let mut lock = self.socket_handle.lock().await;
-                if let Some(sock) = lock.take() {
-                    unsafe {
-                        let _ = closesocket(sock);
-                    }
+            let mut lock = self.socket_handle.lock().await;
+            if let Some(sock) = lock.take() {
+                unsafe {
+                    let _ = closesocket(sock);
                 }
             }
-        } else {
-            let _ = self.serial_fallback.disconnect().await;
         }
 
+        let _ = self.serial_fallback.disconnect().await;
         self.connected = false;
         self.device_address.clear();
         Ok(())
